@@ -1,0 +1,45 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+
+spring:
+  application:
+    name: tcg-card-maker
+  
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+      enabled: true
+  
+  thymeleaf:
+    cache: false
+    encoding: UTF-8
+    mode: HTML
+    prefix: classpath:/templates/
+    suffix: .html
+  
+  web:
+    resources:
+      static-locations: classpath:/static/
+      cache:
+        period: 0
+
+# 日誌配置移至 logback-spring.xml
+
+# 自定義配置
+tcg:
+  card:
+    output-dir: ./output/cards
+    temp-dir: ./temp
+    max-cards-per-batch: 100
+  image:
+    format: PNG
+    quality: 95
+    width: 400
+    height: 560 

@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-TW" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TCG卡片製作工具</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Microsoft JhengHei', sans-serif;
+        }
+        .main-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        .upload-area {
+            border: 3px dashed #007bff;
+            border-radius: 15px;
+            background: #f8f9fa;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .upload-area:hover {
+            border-color: #0056b3;
+            background: #e3f2fd;
+        }
+        .upload-area.dragover {
+            border-color: #28a745;
+            background: #d4edda;
+        }
+        .template-info {
+            background: #f8f9fa;
+            border-left: 5px solid #007bff;
+            font-size: 0.9em;
+        }
+        .btn-custom {
+            background: linear-gradient(45deg, #007bff, #0056b3);
+            border: none;
+            border-radius: 25px;
+            padding: 12px 30px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        .btn-custom:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 123, 255, 0.3);
+        }
+        .feature-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+        .feature-card:hover {
+            transform: translateY(-5px);
+        }
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            background: linear-gradient(45deg, #007bff, #0056b3);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+</head>
+<body>
+    <div class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <div class="main-container p-5">
+                    <!-- 標題區域 -->
+                    <div class="text-center mb-5">
+                        <h1 class="display-4 fw-bold text-primary mb-3">
+                            <i class="fas fa-magic me-3"></i>TCG卡片製作工具
+                        </h1>
+                        <p class="lead text-muted">透過Excel輕鬆批次生成專業的TCG卡片圖片</p>
+                    </div>
+
+                    <!-- 錯誤訊息 -->
+                    <div th:if="${error}" class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <span th:text="${error}"></span>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+
+                    <!-- 功能特色 -->
+                    <div class="row mb-5">
+                        <div class="col-md-4 mb-3">
+                            <div class="feature-card">
+                                <i class="fas fa-file-excel feature-icon"></i>
+                                <h5>Excel匯入</h5>
+                                <p class="text-muted">支援.xlsx和.xls格式，批次處理卡片數據</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="feature-card">
+                                <i class="fas fa-image feature-icon"></i>
+                                <h5>自動生成</h5>
+                                <p class="text-muted">自動根據數據生成精美的卡片圖片</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="feature-card">
+                                <i class="fas fa-download feature-icon"></i>
+                                <h5>批次下載</h5>
+                                <p class="text-muted">一鍵打包下載所有生成的卡片圖片</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 檔案上傳區域 -->
+                    <form id="uploadForm" th:action="@{/upload}" method="post" enctype="multipart/form-data">
+                        <div class="upload-area p-5 text-center mb-4" id="uploadArea">
+                            <i class="fas fa-cloud-upload-alt fa-3x text-primary mb-3"></i>
+                            <h4 class="mb-3">選擇或拖拽Excel檔案到此處</h4>
+                            <p class="text-muted mb-3">支援 .xlsx 和 .xls 格式</p>
+                            <input type="file" id="fileInput" name="file" accept=".xlsx,.xls" class="d-none" required>
+                            <button type="button" class="btn btn-outline-primary btn-lg" onclick="document.getElementById('fileInput').click()">
+                                <i class="fas fa-folder-open me-2"></i>選擇檔案
+                            </button>
+                            <div id="fileInfo" class="mt-3 d-none">
+                                <div class="alert alert-info">
+                                    <i class="fas fa-file-excel me-2"></i>
+                                    <span id="fileName"></span>
+                                    <button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="clearFile()">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary btn-custom btn-lg" id="submitBtn" disabled>
+                                <i class="fas fa-rocket me-2"></i>開始生成卡片
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Excel模板說明 -->
+                    <div class="template-info p-4 mt-5 rounded">
+                        <h5 class="mb-3">
+                            <i class="fas fa-info-circle me-2"></i>Excel檔案格式說明
+                        </h5>
+                        <pre th:text="${templateInfo}" class="mb-0 text-dark"></pre>
+                        
+                        <div class="mt-3">
+                            <small class="text-muted">
+                                <i class="fas fa-lightbulb me-1"></i>
+                                提示：您可以下載我們提供的Excel模板來快速開始
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 檔案處理相關JavaScript
+        const fileInput = document.getElementById('fileInput');
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const submitBtn = document.getElementById('submitBtn');
+
+        // 檔案選擇事件
+        fileInput.addEventListener('change', function(e) {
+            handleFileSelect(e.target.files[0]);
+        });
+
+        // 拖拽功能
+        uploadArea.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileSelect(files[0]);
+            }
+        });
+
+        function handleFileSelect(file) {
+            if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
+                fileName.textContent = file.name;
+                fileInfo.classList.remove('d-none');
+                submitBtn.disabled = false;
+                
+                // 模擬檔案選擇到input元素
+                const dt = new DataTransfer();
+                dt.items.add(file);
+                fileInput.files = dt.files;
+            } else {
+                alert('請選擇有效的Excel檔案 (.xlsx 或 .xls)');
+                clearFile();
+            }
+        }
+
+        function clearFile() {
+            fileInput.value = '';
+            fileInfo.classList.add('d-none');
+            submitBtn.disabled = true;
+        }
+
+        // 表單提交時顯示載入狀態
+        document.getElementById('uploadForm').addEventListener('submit', function() {
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>處理中...';
+            submitBtn.disabled = true;
+        });
+    </script>
+</body>
+</html> 
