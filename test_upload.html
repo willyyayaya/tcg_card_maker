@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>圖片上傳測試</title>
+</head>
+<body>
+    <h1>圖片上傳功能測試</h1>
+    
+    <h2>1. 上傳圖片</h2>
+    <form id="uploadForm" enctype="multipart/form-data">
+        <input type="file" id="fileInput" accept="image/*">
+        <button type="button" onclick="uploadImage()">上傳</button>
+    </form>
+    
+    <h2>2. 測試結果</h2>
+    <div id="result"></div>
+    
+    <script>
+        function uploadImage() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            const resultDiv = document.getElementById('result');
+            
+            if (!file) {
+                resultDiv.innerHTML = '<p style="color: red;">請選擇一個圖片檔案</p>';
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('image', file);
+            
+            fetch('/upload-image', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    resultDiv.innerHTML = `
+                        <p style="color: green;">✅ 上傳成功！</p>
+                        <p><strong>原始檔名：</strong> ${data.originalFilename}</p>
+                        <p><strong>儲存路徑：</strong> ${data.filePath}</p>
+                        <p><strong>縮圖路徑：</strong> ${data.thumbnailPath}</p>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `<p style="color: red;">❌ 上傳失敗：${data.error}</p>`;
+                }
+            })
+            .catch(error => {
+                resultDiv.innerHTML = `<p style="color: red;">❌ 網路錯誤：${error.message}</p>`;
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,8 +1,11 @@
 package com.tcg.cardmaker.controller;
 
-import com.tcg.cardmaker.model.TcgCard;
-import com.tcg.cardmaker.service.CardImageGeneratorService;
-import com.tcg.cardmaker.service.ExcelParserService;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.List;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
@@ -11,14 +14,17 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.util.List;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
+import com.tcg.cardmaker.model.TcgCard;
+import com.tcg.cardmaker.service.CardImageGeneratorService;
+import com.tcg.cardmaker.service.ExcelParserService;
+import com.tcg.cardmaker.service.ImageUploadService;
 
 /**
  * TCG卡片製作控制器
@@ -31,10 +37,14 @@ public class CardMakerController {
     
     private final ExcelParserService excelParserService;
     private final CardImageGeneratorService cardImageGeneratorService;
+    private final ImageUploadService imageUploadService;
 
-    public CardMakerController(ExcelParserService excelParserService, CardImageGeneratorService cardImageGeneratorService) {
+    public CardMakerController(ExcelParserService excelParserService, 
+                              CardImageGeneratorService cardImageGeneratorService,
+                              ImageUploadService imageUploadService) {
         this.excelParserService = excelParserService;
         this.cardImageGeneratorService = cardImageGeneratorService;
+        this.imageUploadService = imageUploadService;
     }
 
     /**
@@ -185,6 +195,54 @@ public class CardMakerController {
     }
 
     /**
+     * 圖片上傳端點
+     */
+    @PostMapping("/upload-image")
+    @ResponseBody
+    public ResponseEntity<?> uploadImage(@RequestParam("image") MultipartFile file) {
+        try {
+            log.info("收到圖片上傳請求: {}", file.getOriginalFilename());
+            
+            ImageUploadService.UploadResult result = imageUploadService.uploadImage(file);
+            
+            if (result.isSuccess()) {
+                // 返回成功結果
+                return ResponseEntity.ok(new ImageUploadResponse(
+                    true, 
+                    result.getFilePath(), 
+                    result.getThumbnailPath(),
+                    result.getOriginalFilename(),
+                    null
+                ));
+            } else {
+                // 返回錯誤
+                return ResponseEntity.badRequest()
+                    .body(new ImageUploadResponse(false, null, null, null, result.getErrorMessage()));
+            }
+            
+        } catch (Exception e) {
+            log.error("圖片上傳時發生錯誤", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ImageUploadResponse(false, null, null, null, "伺服器錯誤: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * 獲取圖片檔案
+     */
+    @GetMapping("/image/{filename}")
+    public ResponseEntity<byte[]> getImage(@RequestParam String filename) {
+        try {
+            // 這裡可以加入圖片獲取邏輯
+            // 暫時返回404，之後會實作
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            log.error("獲取圖片時發生錯誤", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
      * 驗證是否為Excel檔案
      */
     private boolean isExcelFile(MultipartFile file) {
@@ -192,5 +250,32 @@ public class CardMakerController {
         return fileName != null && 
                (fileName.toLowerCase().endsWith(".xlsx") || 
                 fileName.toLowerCase().endsWith(".xls"));
+    }
+
+    /**
+     * 圖片上傳回應類
+     */
+    public static class ImageUploadResponse {
+        private final boolean success;
+        private final String filePath;
+        private final String thumbnailPath;
+        private final String originalFilename;
+        private final String error;
+
+        public ImageUploadResponse(boolean success, String filePath, String thumbnailPath, 
+                                 String originalFilename, String error) {
+            this.success = success;
+            this.filePath = filePath;
+            this.thumbnailPath = thumbnailPath;
+            this.originalFilename = originalFilename;
+            this.error = error;
+        }
+
+        // Getters
+        public boolean isSuccess() { return success; }
+        public String getFilePath() { return filePath; }
+        public String getThumbnailPath() { return thumbnailPath; }
+        public String getOriginalFilename() { return originalFilename; }
+        public String getError() { return error; }
     }
 }

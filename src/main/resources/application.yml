@@ -33,6 +33,12 @@ spring:
 # 日誌配置移至 logback-spring.xml
 
 # 自定義配置
+app:
+  upload:
+    dir: ./uploads
+    max-size: 10MB
+    allowed-types: jpg,jpeg,png,gif,bmp
+
 tcg:
   card:
     output-dir: ./output/cards

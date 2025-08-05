@@ -143,6 +143,55 @@
                         </div>
                     </form>
 
+                    <!-- 圖片上傳區域 -->
+                    <div class="mt-5">
+                        <h4 class="mb-4">
+                            <i class="fas fa-images me-2"></i>圖片上傳
+                        </h4>
+                        
+                        <div class="row">
+                            <!-- 圖片上傳區 -->
+                            <div class="col-lg-6">
+                                <div class="upload-area p-4 text-center mb-4" id="imageUploadArea">
+                                    <i class="fas fa-camera fa-2x text-primary mb-3"></i>
+                                    <h5 class="mb-3">上傳卡片圖片</h5>
+                                    <p class="text-muted mb-3">支援 JPG、PNG、GIF 格式，最大 10MB</p>
+                                    <input type="file" id="imageInput" accept="image/*" class="d-none" multiple>
+                                    <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('imageInput').click()">
+                                        <i class="fas fa-upload me-2"></i>選擇圖片
+                                    </button>
+                                    
+                                    <!-- 上傳進度 -->
+                                    <div id="uploadProgress" class="mt-3 d-none">
+                                        <div class="progress">
+                                            <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                                        </div>
+                                        <small class="text-muted mt-1 d-block">正在上傳...</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 圖片預覽區 -->
+                            <div class="col-lg-6">
+                                <div id="imagePreviewArea" class="border rounded p-3" style="min-height: 200px; background: #f8f9fa;">
+                                    <div class="text-center text-muted" id="noImageText">
+                                        <i class="fas fa-image fa-3x mb-3 opacity-50"></i>
+                                        <p>圖片預覽區</p>
+                                        <small>上傳圖片後將在此顯示預覽</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 已上傳圖片列表 -->
+                        <div id="uploadedImagesList" class="mt-4 d-none">
+                            <h6 class="mb-3">已上傳的圖片</h6>
+                            <div class="row" id="imageGallery">
+                                <!-- 動態生成的圖片項目 -->
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Excel模板說明 -->
                     <div class="template-info p-4 mt-5 rounded">
                         <h5 class="mb-3">
@@ -223,6 +272,191 @@
             submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>處理中...';
             submitBtn.disabled = true;
         });
+
+        // 圖片上傳相關JavaScript
+        const imageInput = document.getElementById('imageInput');
+        const imageUploadArea = document.getElementById('imageUploadArea');
+        const imagePreviewArea = document.getElementById('imagePreviewArea');
+        const noImageText = document.getElementById('noImageText');
+        const uploadProgress = document.getElementById('uploadProgress');
+        const uploadedImagesList = document.getElementById('uploadedImagesList');
+        const imageGallery = document.getElementById('imageGallery');
+        
+        // 存儲已上傳的圖片
+        let uploadedImages = [];
+
+        // 圖片選擇事件
+        imageInput.addEventListener('change', function(e) {
+            const files = Array.from(e.target.files);
+            files.forEach(file => {
+                if (validateImageFile(file)) {
+                    uploadImage(file);
+                }
+            });
+        });
+
+        // 圖片拖拽功能
+        imageUploadArea.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            imageUploadArea.classList.add('dragover');
+        });
+
+        imageUploadArea.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            imageUploadArea.classList.remove('dragover');
+        });
+
+        imageUploadArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            imageUploadArea.classList.remove('dragover');
+            const files = Array.from(e.dataTransfer.files);
+            files.forEach(file => {
+                if (validateImageFile(file)) {
+                    uploadImage(file);
+                }
+            });
+        });
+
+        // 驗證圖片檔案
+        function validateImageFile(file) {
+            const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/bmp'];
+            const maxSize = 10 * 1024 * 1024; // 10MB
+
+            if (!allowedTypes.includes(file.type)) {
+                alert('不支援的圖片格式！請選擇 JPG、PNG、GIF 或 BMP 檔案。');
+                return false;
+            }
+
+            if (file.size > maxSize) {
+                alert('檔案太大！請選擇小於 10MB 的圖片。');
+                return false;
+            }
+
+            return true;
+        }
+
+        // 上傳圖片
+        function uploadImage(file) {
+            const formData = new FormData();
+            formData.append('image', file);
+
+            // 顯示進度條
+            uploadProgress.classList.remove('d-none');
+            const progressBar = uploadProgress.querySelector('.progress-bar');
+            progressBar.style.width = '0%';
+
+            // 創建 XMLHttpRequest 來追蹤上傳進度
+            const xhr = new XMLHttpRequest();
+
+            xhr.upload.addEventListener('progress', function(e) {
+                if (e.lengthComputable) {
+                    const percentComplete = (e.loaded / e.total) * 100;
+                    progressBar.style.width = percentComplete + '%';
+                }
+            });
+
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === XMLHttpRequest.DONE) {
+                    uploadProgress.classList.add('d-none');
+                    
+                    if (xhr.status === 200) {
+                        const response = JSON.parse(xhr.responseText);
+                        if (response.success) {
+                            addImageToGallery(response);
+                            showImagePreview(file);
+                        } else {
+                            alert('上傳失敗: ' + response.error);
+                        }
+                    } else {
+                        alert('上傳失敗，請重試');
+                    }
+                }
+            };
+
+            xhr.open('POST', '/upload-image');
+            xhr.send(formData);
+        }
+
+        // 顯示圖片預覽
+        function showImagePreview(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                noImageText.style.display = 'none';
+                imagePreviewArea.innerHTML = `
+                    <img src="${e.target.result}" class="img-fluid rounded" style="max-height: 180px;" alt="預覽圖片">
+                `;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // 添加圖片到圖庫
+        function addImageToGallery(imageData) {
+            uploadedImages.push(imageData);
+            
+            const imageCard = document.createElement('div');
+            imageCard.className = 'col-md-3 mb-3';
+            imageCard.innerHTML = `
+                <div class="card">
+                    <div class="card-body p-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-truncate">${imageData.originalFilename}</small>
+                            <button class="btn btn-sm btn-outline-danger" onclick="removeImage('${imageData.filePath}')">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="mt-2">
+                            <span class="badge bg-success">已上傳</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            imageGallery.appendChild(imageCard);
+            uploadedImagesList.classList.remove('d-none');
+        }
+
+        // 移除圖片
+        function removeImage(filePath) {
+            uploadedImages = uploadedImages.filter(img => img.filePath !== filePath);
+            updateImageGallery();
+            
+            if (uploadedImages.length === 0) {
+                uploadedImagesList.classList.add('d-none');
+                noImageText.style.display = 'block';
+                imagePreviewArea.innerHTML = `
+                    <div class="text-center text-muted" id="noImageText">
+                        <i class="fas fa-image fa-3x mb-3 opacity-50"></i>
+                        <p>圖片預覽區</p>
+                        <small>上傳圖片後將在此顯示預覽</small>
+                    </div>
+                `;
+            }
+        }
+
+        // 更新圖片圖庫
+        function updateImageGallery() {
+            imageGallery.innerHTML = '';
+            uploadedImages.forEach(imageData => {
+                const imageCard = document.createElement('div');
+                imageCard.className = 'col-md-3 mb-3';
+                imageCard.innerHTML = `
+                    <div class="card">
+                        <div class="card-body p-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-truncate">${imageData.originalFilename}</small>
+                                <button class="btn btn-sm btn-outline-danger" onclick="removeImage('${imageData.filePath}')">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div class="mt-2">
+                                <span class="badge bg-success">已上傳</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                imageGallery.appendChild(imageCard);
+            });
+        }
     </script>
 </body>
 </html> 
