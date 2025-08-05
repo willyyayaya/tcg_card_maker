@@ -11,6 +11,9 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
+import java.net.URLConnection;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -18,6 +21,7 @@ import javax.imageio.ImageIO;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.tcg.cardmaker.model.TcgCard;
@@ -30,6 +34,9 @@ import com.tcg.cardmaker.model.TcgCard;
 public class CardImageGeneratorService {
 
     private static final Logger log = LoggerFactory.getLogger(CardImageGeneratorService.class);
+    
+    @Autowired
+    private ImageUploadService imageUploadService;
 
     // 卡片尺寸常數
     private static final int CARD_WIDTH = 400;
@@ -182,9 +189,9 @@ public class CardImageGeneratorService {
         contentY += 40;
         drawTypeAndRarity(g2d, card, contentX, contentY, contentWidth);
 
-        // 繪製圖片區域 (預留空間)
+        // 繪製圖片區域
         contentY += 40;
-        drawImageArea(g2d, contentX, contentY, contentWidth, 180);
+        drawCardImage(g2d, card, contentX, contentY, contentWidth, 180);
 
         // 繪製描述文字
         contentY += 200;
@@ -242,9 +249,124 @@ public class CardImageGeneratorService {
     }
 
     /**
-     * 繪製圖片區域
+     * 繪製卡片圖片
      */
-    private void drawImageArea(Graphics2D g2d, int x, int y, int width, int height) {
+    private void drawCardImage(Graphics2D g2d, TcgCard card, int x, int y, int width, int height) {
+        try {
+            BufferedImage cardImage = loadCardImage(card);
+            
+            if (cardImage != null) {
+                // 計算縮放比例以適應指定區域
+                double scaleX = (double) width / cardImage.getWidth();
+                double scaleY = (double) height / cardImage.getHeight();
+                double scale = Math.min(scaleX, scaleY);
+                
+                int scaledWidth = (int) (cardImage.getWidth() * scale);
+                int scaledHeight = (int) (cardImage.getHeight() * scale);
+                
+                // 計算置中位置
+                int imageX = x + (width - scaledWidth) / 2;
+                int imageY = y + (height - scaledHeight) / 2;
+                
+                // 繪製圖片背景
+                g2d.setColor(Color.WHITE);
+                g2d.fillRect(x, y, width, height);
+                
+                // 繪製圖片
+                g2d.drawImage(cardImage, imageX, imageY, scaledWidth, scaledHeight, null);
+                
+                // 繪製圖片邊框
+                g2d.setColor(Color.GRAY);
+                g2d.setStroke(new BasicStroke(1));
+                g2d.drawRect(x, y, width, height);
+                
+                log.debug("成功繪製卡片圖片: {}", card.getName());
+            } else {
+                // 沒有圖片時顯示佔位區域
+                drawPlaceholderImage(g2d, x, y, width, height);
+            }
+            
+        } catch (Exception e) {
+            log.warn("繪製卡片圖片時發生錯誤: {}, 使用佔位圖片", e.getMessage());
+            drawPlaceholderImage(g2d, x, y, width, height);
+        }
+    }
+    
+    /**
+     * 載入卡片圖片
+     */
+    private BufferedImage loadCardImage(TcgCard card) {
+        String imageUrl = card.getImageUrl();
+        
+        if (imageUrl == null || imageUrl.trim().isEmpty()) {
+            return null;
+        }
+        
+        try {
+            // 檢查是否為本地檔案路徑
+            if (isLocalFilePath(imageUrl)) {
+                return loadLocalImage(imageUrl);
+            } else {
+                // 嘗試從URL下載圖片
+                return loadImageFromUrl(imageUrl);
+            }
+        } catch (Exception e) {
+            log.warn("無法載入圖片 {}: {}", imageUrl, e.getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * 檢查是否為本地檔案路徑
+     */
+    private boolean isLocalFilePath(String path) {
+        // 檢查是否為相對路徑或絕對路徑
+        return path.startsWith("./uploads/") || 
+               path.startsWith("uploads/") ||
+               path.startsWith("C:\\") ||
+               path.startsWith("/") ||
+               (!path.startsWith("http://") && !path.startsWith("https://"));
+    }
+    
+    /**
+     * 載入本地圖片
+     */
+    private BufferedImage loadLocalImage(String imagePath) throws IOException {
+        File imageFile = new File(imagePath);
+        if (!imageFile.exists()) {
+            log.warn("本地圖片檔案不存在: {}", imagePath);
+            return null;
+        }
+        
+        BufferedImage image = ImageIO.read(imageFile);
+        log.debug("成功載入本地圖片: {}", imagePath);
+        return image;
+    }
+    
+    /**
+     * 從URL載入圖片
+     */
+    private BufferedImage loadImageFromUrl(String imageUrl) throws IOException {
+        URL url = new URL(imageUrl);
+        URLConnection connection = url.openConnection();
+        
+        // 設置請求頭，模擬瀏覽器請求
+        connection.setRequestProperty("User-Agent", 
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+        connection.setConnectTimeout(5000); // 5秒連接超時
+        connection.setReadTimeout(10000);   // 10秒讀取超時
+        
+        try (InputStream inputStream = connection.getInputStream()) {
+            BufferedImage image = ImageIO.read(inputStream);
+            log.debug("成功從URL載入圖片: {}", imageUrl);
+            return image;
+        }
+    }
+    
+    /**
+     * 繪製佔位圖片
+     */
+    private void drawPlaceholderImage(Graphics2D g2d, int x, int y, int width, int height) {
         // 繪製圖片佔位區域
         g2d.setColor(new Color(240, 240, 240));
         g2d.fillRect(x, y, width, height);
@@ -256,7 +378,7 @@ public class CardImageGeneratorService {
         // 繪製圖片佔位文字
         g2d.setColor(Color.GRAY);
         g2d.setFont(getChineseFont(Font.ITALIC, 16));
-        drawCenteredText(g2d, "圖片區域", x, y + height / 2, width);
+        drawCenteredText(g2d, "無圖片", x, y + height / 2, width);
     }
 
     /**

@@ -1,0 +1,4 @@
+name,type,rarity,attack,defense,cost,description,imageUrl,backgroundStyle,borderColor
+火龍戰士,生物,稀有,8,6,5,一隻強大的火龍，能夠噴出熊熊烈火，攻擊敵人。,./uploads/images/3084f514-2c64-4caa-92d7-4a6ad193878d.png,火焰,紅色
+水晶法師,法術,史詩,4,8,6,擁有強大魔法力量的法師，能夠操控水晶的力量。,./font_test.png,水晶,藍色
+暗影刺客,生物,傳說,12,4,7,來自暗影界的刺客，擁有無與倫比的速度和致命一擊。,,暗影,黑色
