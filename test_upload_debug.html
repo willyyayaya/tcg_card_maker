@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>圖片上傳測試</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .upload-area {
+            border: 2px dashed #ccc;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            margin: 20px 0;
+        }
+        .upload-area:hover { background-color: #f5f5f5; }
+        .upload-area.dragover { background-color: #e3f2fd; border-color: #2196f3; }
+        .result { margin-top: 20px; padding: 10px; background: #f9f9f9; border-radius: 5px; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <h1>圖片上傳功能測試</h1>
+    
+    <div class="upload-area" id="uploadArea">
+        <p>點擊選擇圖片或拖拽圖片到此區域</p>
+        <input type="file" id="fileInput" accept="image/*" style="display: none;">
+        <button onclick="document.getElementById('fileInput').click()">選擇圖片</button>
+    </div>
+    
+    <div id="progress" style="display: none;">
+        <p>上傳進度: <span id="progressText">0%</span></p>
+    </div>
+    
+    <div id="result" class="result" style="display: none;"></div>
+    
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const progress = document.getElementById('progress');
+        const progressText = document.getElementById('progressText');
+        const result = document.getElementById('result');
+        
+        // 文件選擇
+        fileInput.addEventListener('change', function(e) {
+            if (e.target.files.length > 0) {
+                uploadFile(e.target.files[0]);
+            }
+        });
+        
+        // 拖拽事件
+        uploadArea.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = Array.from(e.dataTransfer.files);
+            if (files.length > 0 && files[0].type.startsWith('image/')) {
+                uploadFile(files[0]);
+            } else {
+                showResult('請選擇圖片檔案！', 'error');
+            }
+        });
+        
+        function uploadFile(file) {
+            console.log('開始上傳檔案:', file.name, '類型:', file.type, '大小:', file.size);
+            
+            // 顯示進度
+            progress.style.display = 'block';
+            result.style.display = 'none';
+            
+            const formData = new FormData();
+            formData.append('image', file);
+            
+            const xhr = new XMLHttpRequest();
+            
+            // 進度追蹤
+            xhr.upload.addEventListener('progress', function(e) {
+                if (e.lengthComputable) {
+                    const percent = Math.round((e.loaded / e.total) * 100);
+                    progressText.textContent = percent + '%';
+                }
+            });
+            
+            // 完成處理
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === XMLHttpRequest.DONE) {
+                    progress.style.display = 'none';
+                    
+                    console.log('響應狀態:', xhr.status);
+                    console.log('響應內容:', xhr.responseText);
+                    
+                    if (xhr.status === 200) {
+                        try {
+                            const response = JSON.parse(xhr.responseText);
+                            if (response.success) {
+                                showResult('上傳成功！<br>' + 
+                                         '檔案路徑: ' + response.filePath + '<br>' +
+                                         '縮圖路徑: ' + response.thumbnailPath + '<br>' +
+                                         '原始檔名: ' + response.originalFilename, 'success');
+                            } else {
+                                showResult('上傳失敗: ' + response.error, 'error');
+                            }
+                        } catch (e) {
+                            showResult('解析響應失敗: ' + e.message, 'error');
+                        }
+                    } else {
+                        showResult('HTTP錯誤 ' + xhr.status + ': ' + xhr.statusText, 'error');
+                    }
+                }
+            };
+            
+            // 錯誤處理
+            xhr.onerror = function() {
+                progress.style.display = 'none';
+                showResult('網路錯誤，請檢查服務器是否運行', 'error');
+            };
+            
+            try {
+                xhr.open('POST', 'http://localhost:8080/upload-image');
+                xhr.send(formData);
+            } catch (e) {
+                progress.style.display = 'none';
+                showResult('發送請求失敗: ' + e.message, 'error');
+            }
+        }
+        
+        function showResult(message, type) {
+            result.innerHTML = message;
+            result.className = 'result ' + type;
+            result.style.display = 'block';
+        }
+        
+        // 檢查服務器狀態
+        window.onload = function() {
+            // 檢查DOM元素
+            console.log('uploadArea:', uploadArea);
+            console.log('fileInput:', fileInput);
+            
+            fetch('http://localhost:8080/upload-image', {method: 'GET'})
+                .then(response => {
+                    if (response.status === 405) {
+                        showResult('服務器正在運行 ✓', 'success');
+                    } else {
+                        showResult('服務器響應異常，狀態: ' + response.status, 'error');
+                    }
+                })
+                .catch(error => {
+                    showResult('無法連接到服務器，請確認服務是否啟動', 'error');
+                });
+        };
+    </script>
+</body>
+</html>

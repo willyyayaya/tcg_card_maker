@@ -14,6 +14,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -199,6 +200,7 @@ public class CardMakerController {
      */
     @PostMapping("/upload-image")
     @ResponseBody
+    @CrossOrigin(origins = "*")
     public ResponseEntity<?> uploadImage(@RequestParam("image") MultipartFile file) {
         try {
             log.info("收到圖片上傳請求: {}", file.getOriginalFilename());

@@ -213,6 +213,8 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // 等待DOM完全載入
+        document.addEventListener('DOMContentLoaded', function() {
         // 檔案處理相關JavaScript
         const fileInput = document.getElementById('fileInput');
         const uploadArea = document.getElementById('uploadArea');
@@ -457,6 +459,8 @@
                 imageGallery.appendChild(imageCard);
             });
         }
+        
+        }); // 關閉DOMContentLoaded事件監聽器
     </script>
 </body>
 </html> 
