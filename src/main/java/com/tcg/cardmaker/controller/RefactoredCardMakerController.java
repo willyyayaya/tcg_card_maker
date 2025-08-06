@@ -26,7 +26,7 @@ import com.tcg.cardmaker.model.TcgCard;
 import com.tcg.cardmaker.service.interfaces.FileParserService;
 import com.tcg.cardmaker.service.interfaces.ImageGeneratorService;
 import com.tcg.cardmaker.service.interfaces.ImageStorageService;
-
+import com.tcg.cardmaker.exception.CardMakerException;
 
 /**
  * 重構後的TCG卡片製作控制器
@@ -38,17 +38,17 @@ import com.tcg.cardmaker.service.interfaces.ImageStorageService;
  * - DIP: 依賴抽象而非具體實作
  */
 @Controller
-public class CardMakerController {
+public class RefactoredCardMakerController {
 
-    private static final Logger log = LoggerFactory.getLogger(CardMakerController.class);
+    private static final Logger log = LoggerFactory.getLogger(RefactoredCardMakerController.class);
     
     private final FileParserService fileParserService;
     private final ImageGeneratorService imageGeneratorService;
     private final ImageStorageService imageStorageService;
 
-    public CardMakerController(FileParserService fileParserService, 
-                              ImageGeneratorService imageGeneratorService,
-                              ImageStorageService imageStorageService) {
+    public RefactoredCardMakerController(FileParserService fileParserService, 
+                                       ImageGeneratorService imageGeneratorService,
+                                       ImageStorageService imageStorageService) {
         this.fileParserService = fileParserService;
         this.imageGeneratorService = imageGeneratorService;
         this.imageStorageService = imageStorageService;
@@ -76,12 +76,7 @@ public class CardMakerController {
             }
 
             // 解析檔案
-            List<TcgCard> cards;
-            try {
-                cards = fileParserService.parseFile(file);
-            } catch (Exception e) {
-                throw new RuntimeException("檔案解析失敗", e);
-            }
+            List<TcgCard> cards = fileParserService.parseFile(file);
             
             if (cards.isEmpty()) {
                 return handleValidationError("檔案中沒有找到有效的卡片數據", model);
@@ -95,7 +90,7 @@ public class CardMakerController {
             log.info("成功處理檔案: {}，解析出 {} 張卡片", file.getOriginalFilename(), cards.size());
             return "result";
 
-        } catch (RuntimeException e) {
+        } catch (Exception e) {
             log.error("處理檔案時發生錯誤: {}", file.getOriginalFilename(), e);
             return handleProcessingError("檔案處理失敗: " + e.getMessage(), model);
         }
@@ -126,7 +121,7 @@ public class CardMakerController {
                     .body(new ImageUploadResponse(false, null, null, null, result.getErrorMessage()));
             }
             
-        } catch (RuntimeException e) {
+        } catch (Exception e) {
             log.error("圖片上傳時發生錯誤", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new ImageUploadResponse(false, null, null, null, "伺服器錯誤: " + e.getMessage()));
@@ -152,7 +147,7 @@ public class CardMakerController {
             
             return new ResponseEntity<>(imageBytes, headers, HttpStatus.OK);
             
-        } catch (IOException | RuntimeException e) {
+        } catch (Exception e) {
             log.error("生成卡片預覽失敗: {}", card.getName(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
@@ -181,7 +176,7 @@ public class CardMakerController {
                         zos.write(imageBytes);
                         zos.closeEntry();
                         
-                    } catch (IOException | RuntimeException e) {
+                    } catch (Exception e) {
                         log.warn("生成卡片失敗，跳過: {}", card.getName(), e);
                     }
                 }
@@ -193,7 +188,7 @@ public class CardMakerController {
             
             return new ResponseEntity<>(baos.toByteArray(), headers, HttpStatus.OK);
             
-        } catch (IOException | RuntimeException e) {
+        } catch (Exception e) {
             log.error("批量下載失敗", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
