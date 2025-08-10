@@ -221,7 +221,6 @@ public class TcgCardImageGeneratorService implements ImageGeneratorService {
         Color typeColor = typeColors.getOrDefault(type, Color.BLACK);
         g2d.setColor(typeColor);
         
-        FontMetrics fm = g2d.getFontMetrics();
         int x = 30;
         int y = 320;
         
