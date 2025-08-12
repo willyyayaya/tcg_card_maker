@@ -1,6 +1,7 @@
 package com.tcg.cardmaker.controller;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -74,7 +75,12 @@ public class RefactoredCardMakerController {
             }
 
             // 解析檔案
-            List<TcgCard> cards = fileParserService.parseFile(file);
+            List<TcgCard> cards;
+            try {
+                cards = fileParserService.parseFile(file);
+            } catch (Exception e) {
+                throw new RuntimeException("檔案解析失敗: " + e.getMessage(), e);
+            }
             
             if (cards.isEmpty()) {
                 return handleValidationError("檔案中沒有找到有效的卡片數據", model);
@@ -88,7 +94,7 @@ public class RefactoredCardMakerController {
             log.info("成功處理檔案: {}，解析出 {} 張卡片", file.getOriginalFilename(), cards.size());
             return "result";
 
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             log.error("處理檔案時發生錯誤: {}", file.getOriginalFilename(), e);
             return handleProcessingError("檔案處理失敗: " + e.getMessage(), model);
         }
@@ -119,7 +125,7 @@ public class RefactoredCardMakerController {
                     .body(new ImageUploadResponse(false, null, null, null, result.getErrorMessage()));
             }
             
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             log.error("圖片上傳時發生錯誤", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new ImageUploadResponse(false, null, null, null, "伺服器錯誤: " + e.getMessage()));
@@ -145,7 +151,7 @@ public class RefactoredCardMakerController {
             
             return new ResponseEntity<>(imageBytes, headers, HttpStatus.OK);
             
-        } catch (Exception e) {
+        } catch (IOException | RuntimeException e) {
             log.error("生成卡片預覽失敗: {}", card.getName(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
@@ -186,7 +192,7 @@ public class RefactoredCardMakerController {
             
             return new ResponseEntity<>(baos.toByteArray(), headers, HttpStatus.OK);
             
-        } catch (Exception e) {
+        } catch (IOException | RuntimeException e) {
             log.error("批量下載失敗", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
