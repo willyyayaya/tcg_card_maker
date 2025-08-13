@@ -180,7 +180,7 @@ public class RefactoredCardMakerController {
                         zos.write(imageBytes);
                         zos.closeEntry();
                         
-                    } catch (Exception e) {
+                    } catch (IOException | RuntimeException e) {
                         log.warn("生成卡片失敗，跳過: {}", card.getName(), e);
                     }
                 }
